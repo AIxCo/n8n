@@ -1,10 +1,10 @@
-import type { AxiosRequestConfig, Method, RawAxiosRequestHeaders } from 'axios';
-import axios from 'axios';
-import { ApplicationError, jsonParse, type GenericValue, type IDataObject } from 'n8n-workflow';
-import { parse } from 'flatted';
-import { assert } from '@/utils/assert';
-
 import { BROWSER_ID_STORAGE_KEY } from '@/constants';
+import { assert } from '@/utils/assert';
+import axios from 'axios';
+import { parse } from 'flatted';
+import { ApplicationError, GenericValue, IDataObject, jsonParse } from 'n8n-workflow';
+
+import type { AxiosRequestConfig, Method, RawAxiosRequestHeaders } from 'axios';
 import type { IExecutionFlattedResponse, IExecutionResponse, IRestApiContext } from '@/Interface';
 
 const getBrowserId = () => {
@@ -212,13 +212,17 @@ export async function streamRequest<T>(
 		'Content-Type': 'application/json',
 	};
 	const assistantRequest: RequestInit = {
-		headers,
+		// headers,
 		method: 'POST',
-		credentials: 'include',
+		// credentials: 'include',
 		body: JSON.stringify(payload),
 	};
+	console.log('context.baseUrl', context.baseUrl);
+
+	const url = 'http://localhost:3000/api' || context.baseUrl;
+
 	try {
-		const response = await fetch(`${context.baseUrl}${apiEndpoint}`, assistantRequest);
+		const response = await fetch(`${url}${apiEndpoint}`, assistantRequest);
 
 		if (response.ok && response.body) {
 			// Handle the streaming response

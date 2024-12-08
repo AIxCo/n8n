@@ -1,37 +1,38 @@
 import { chatWithAssistant, replaceCode } from '@/api/ai';
-import {
-	VIEWS,
-	EDITABLE_CANVAS_VIEWS,
-	STORES,
-	AI_ASSISTANT_EXPERIMENT,
-	PLACEHOLDER_EMPTY_WORKFLOW_ID,
-	CREDENTIAL_EDIT_MODAL_KEY,
-} from '@/constants';
-import type { ChatRequest } from '@/types/assistant.types';
-import type { ChatUI } from 'n8n-design-system/types/assistant';
-import { defineStore } from 'pinia';
-import type { PushPayload } from '@n8n/api-types';
-import { computed, h, ref, watch } from 'vue';
-import { useRootStore } from './root.store';
-import { useUsersStore } from './users.store';
-import { useRoute } from 'vue-router';
-import { useSettingsStore } from './settings.store';
-import { assert } from '@/utils/assert';
-import { useWorkflowsStore } from './workflows.store';
-import type { ICredentialType, INodeParameters, NodeError, INode } from 'n8n-workflow';
-import { deepCopy } from 'n8n-workflow';
-import { ndvEventBus, codeNodeEditorEventBus } from '@/event-bus';
-import { useNDVStore } from './ndv.store';
-import type { IUpdateInformation } from '@/Interface';
-import { usePostHog } from './posthog.store';
+import AiUpdatedCodeMessage from '@/components/AiUpdatedCodeMessage.vue';
+import { useAIAssistantHelpers } from '@/composables/useAIAssistantHelpers';
 import { useI18n } from '@/composables/useI18n';
 import { useTelemetry } from '@/composables/useTelemetry';
 import { useToast } from '@/composables/useToast';
-import { useUIStore } from './ui.store';
-import AiUpdatedCodeMessage from '@/components/AiUpdatedCodeMessage.vue';
-import { useCredentialsStore } from './credentials.store';
-import { useAIAssistantHelpers } from '@/composables/useAIAssistantHelpers';
+import {
+	AI_ASSISTANT_EXPERIMENT,
+	CREDENTIAL_EDIT_MODAL_KEY,
+	EDITABLE_CANVAS_VIEWS,
+	PLACEHOLDER_EMPTY_WORKFLOW_ID,
+	STORES,
+	VIEWS,
+} from '@/constants';
+import { codeNodeEditorEventBus, ndvEventBus } from '@/event-bus';
+import { assert } from '@/utils/assert';
+import { deepCopy } from 'n8n-workflow';
+import { defineStore } from 'pinia';
+import { computed, h, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
+import { useCredentialsStore } from './credentials.store';
+import { useNDVStore } from './ndv.store';
+import { usePostHog } from './posthog.store';
+import { useRootStore } from './root.store';
+import { useSettingsStore } from './settings.store';
+import { useUIStore } from './ui.store';
+import { useUsersStore } from './users.store';
+import { useWorkflowsStore } from './workflows.store';
+
+import type { ChatRequest } from '@/types/assistant.types';
+import type { ChatUI } from 'n8n-design-system/types/assistant';
+import type { PushPayload } from '@n8n/api-types';
+import type { ICredentialType, INodeParameters, NodeError, INode } from 'n8n-workflow';
+import type { IUpdateInformation } from '@/Interface';
 export const MAX_CHAT_WIDTH = 425;
 export const MIN_CHAT_WIDTH = 250;
 export const DEFAULT_CHAT_WIDTH = 330;
@@ -89,9 +90,9 @@ export const useAssistantStore = defineStore(STORES.ASSISTANT, () => {
 	const workflowDataStale = ref<boolean>(true);
 	const workflowExecutionDataStale = ref<boolean>(true);
 
-	const isExperimentEnabled = computed(
-		() => getVariant(AI_ASSISTANT_EXPERIMENT.name) === AI_ASSISTANT_EXPERIMENT.variant,
-	);
+	const isExperimentEnabled = computed(() => true);
+	console.log('isExperimentEnabled', isExperimentEnabled.value);
+	console.log('settings', settings);
 
 	const assistantMessages = computed(() =>
 		chatMessages.value.filter((msg) => msg.role === 'assistant'),
@@ -114,13 +115,17 @@ export const useAssistantStore = defineStore(STORES.ASSISTANT, () => {
 		() => isExperimentEnabled.value && settings.isAiAssistantEnabled,
 	);
 
+	console.log('isAssistantEnabled', isAssistantEnabled.value);
 	const canShowAssistant = computed(
 		() => isAssistantEnabled.value && ENABLED_VIEWS.includes(route.name as VIEWS),
 	);
 
+	console.log('canShowAssistant', canShowAssistant.value);
+
 	const canShowAssistantButtonsOnCanvas = computed(
 		() => isAssistantEnabled.value && EDITABLE_CANVAS_VIEWS.includes(route.name as VIEWS),
 	);
+	console.log('canShowAssistantButtonsOnCanvas', canShowAssistantButtonsOnCanvas.value);
 
 	const unreadCount = computed(
 		() =>

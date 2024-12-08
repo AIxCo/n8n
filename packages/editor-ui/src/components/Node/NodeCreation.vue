@@ -43,6 +43,10 @@ const wrapperRef = ref<HTMLElement | undefined>();
 const wrapperBoundingRect = ref<DOMRect | undefined>();
 const isStickyNotesButtonVisible = ref(true);
 
+const isChatOpen = ref(false);
+const messages = ref([{ role: 'assistant', content: 'Hello! How can I help you today?' }]);
+const newMessage = ref('');
+
 const onMouseMove = useThrottleFn((event: MouseEvent) => {
 	if (wrapperBoundingRect.value) {
 		const offset = 100;
@@ -86,6 +90,26 @@ function closeNodeCreator(hasAddedNodes = false) {
 function nodeTypeSelected(nodeTypes: string[]) {
 	emit('addNodes', getAddedNodesAndConnections(nodeTypes.map((type) => ({ type }))));
 	closeNodeCreator(true);
+}
+
+function toggleChat() {
+	isChatOpen.value = !isChatOpen.value;
+}
+
+function sendMessage() {
+	if (!newMessage.value.trim()) return;
+
+	messages.value.push({ role: 'user', content: newMessage.value });
+
+	// Simulate AI response (we'll replace this with actual API call later)
+	setTimeout(() => {
+		messages.value.push({
+			role: 'assistant',
+			content: `This is a mock response to: ${newMessage.value}`,
+		});
+	}, 1000);
+
+	newMessage.value = '';
 }
 
 onMounted(() => {
@@ -173,5 +197,64 @@ onBeforeUnmount(() => {
 .nodeCreatorPlus {
 	width: 36px;
 	height: 36px;
+}
+
+.aiChatButton {
+	margin-top: var(--spacing-2xs);
+	opacity: 0;
+	transition: 0.1s;
+	transition-timing-function: linear;
+}
+
+.chatInterface {
+	position: fixed;
+	right: var(--spacing-s);
+	top: var(--spacing-xl);
+	width: 300px;
+	height: 500px;
+	background: var(--color-background-xlight);
+	border: 1px solid var(--color-foreground-base);
+	border-radius: var(--border-radius-large);
+	display: flex;
+	flex-direction: column;
+	z-index: 999;
+}
+
+.chatHeader {
+	padding: var(--spacing-2xs) var(--spacing-s);
+	border-bottom: 1px solid var(--color-foreground-base);
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.chatMessages {
+	flex: 1;
+	overflow-y: auto;
+	padding: var(--spacing-s);
+}
+
+.message {
+	margin-bottom: var(--spacing-2xs);
+	padding: var(--spacing-2xs) var(--spacing-s);
+	border-radius: var(--border-radius-base);
+	max-width: 80%;
+}
+
+.assistant {
+	background: var(--color-background-light);
+	align-self: flex-start;
+}
+
+.user {
+	background: var(--color-primary-tint-3);
+	margin-left: auto;
+}
+
+.chatInput {
+	padding: var(--spacing-2xs);
+	border-top: 1px solid var(--color-foreground-base);
+	display: flex;
+	gap: var(--spacing-2xs);
 }
 </style>

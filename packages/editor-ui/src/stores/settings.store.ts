@@ -1,26 +1,27 @@
-import { computed, ref } from 'vue';
-import Bowser from 'bowser';
-import type { IUserManagementSettings, FrontendSettings } from '@n8n/api-types';
-
 import * as publicApiApi from '@/api/api-keys';
 import * as eventsApi from '@/api/events';
 import * as ldapApi from '@/api/ldap';
 import * as settingsApi from '@/api/settings';
 import { testHealthEndpoint } from '@/api/templates';
-import type { ILdapConfig } from '@/Interface';
-import { STORES, INSECURE_CONNECTION_WARNING } from '@/constants';
+import { useToast } from '@/composables/useToast';
+import { INSECURE_CONNECTION_WARNING, STORES } from '@/constants';
 import { UserManagementAuthenticationMethod } from '@/Interface';
-import type { IDataObject, WorkflowSettings } from 'n8n-workflow';
+import { i18n } from '@/plugins/i18n';
+import { makeRestApiRequest } from '@/utils/apiUtils';
+import Bowser from 'bowser';
 import { ExpressionEvaluatorProxy } from 'n8n-workflow';
 import { defineStore } from 'pinia';
+import { computed, ref } from 'vue';
+
 import { useRootStore } from './root.store';
 import { useUIStore } from './ui.store';
 import { useUsersStore } from './users.store';
 import { useVersionsStore } from './versions.store';
-import { makeRestApiRequest } from '@/utils/apiUtils';
-import { useToast } from '@/composables/useToast';
-import { i18n } from '@/plugins/i18n';
 
+import type { IUserManagementSettings, FrontendSettings } from '@n8n/api-types';
+
+import type { ILdapConfig } from '@/Interface';
+import type { IDataObject, WorkflowSettings } from 'n8n-workflow';
 export const useSettingsStore = defineStore(STORES.SETTINGS, () => {
 	const initialized = ref(false);
 	const settings = ref<FrontendSettings>({} as FrontendSettings);
@@ -88,7 +89,7 @@ export const useSettingsStore = defineStore(STORES.SETTINGS, () => {
 
 	const isSamlLoginEnabled = computed(() => saml.value.loginEnabled);
 
-	const isAiAssistantEnabled = computed(() => settings.value.aiAssistant?.enabled);
+	const isAiAssistantEnabled = computed(() => settings.value.aiAssistant?.enabled || true);
 
 	const isAskAiEnabled = computed(() => settings.value.askAi?.enabled);
 

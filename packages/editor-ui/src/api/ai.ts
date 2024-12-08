@@ -1,6 +1,7 @@
+import { makeRestApiRequest, streamRequest } from '@/utils/apiUtils';
+
 import type { IRestApiContext } from '@/Interface';
 import type { AskAiRequest, ChatRequest, ReplaceCodeRequest } from '@/types/assistant.types';
-import { makeRestApiRequest, streamRequest } from '@/utils/apiUtils';
 import type { IDataObject } from 'n8n-workflow';
 
 export function chatWithAssistant(
@@ -12,7 +13,7 @@ export function chatWithAssistant(
 ): void {
 	void streamRequest<ChatRequest.ResponsePayload>(
 		ctx,
-		'/ai/chat',
+		'/chat/n8n',
 		payload,
 		onMessageUpdated,
 		onDone,
@@ -27,7 +28,7 @@ export async function replaceCode(
 	return await makeRestApiRequest<ReplaceCodeRequest.ResponsePayload>(
 		context,
 		'POST',
-		'/ai/chat/apply-suggestion',
+		'/chat/n8n/apply-suggestion',
 		data,
 	);
 }

@@ -1,18 +1,12 @@
-import { Response } from 'express';
-import { ApplicationError } from 'n8n-workflow';
-import validator from 'validator';
-
 import { handleEmailLogin, handleLdapLogin } from '@/auth';
 import { AuthService } from '@/auth/auth.service';
 import { RESPONSE_ERROR_MESSAGES } from '@/constants';
-import type { User } from '@/databases/entities/user';
 import { UserRepository } from '@/databases/repositories/user.repository';
 import { Get, Post, RestController } from '@/decorators';
 import { AuthError } from '@/errors/response-errors/auth.error';
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
 import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
 import { EventService } from '@/events/event.service';
-import type { PublicUser } from '@/interfaces';
 import { License } from '@/license';
 import { Logger } from '@/logging/logger.service';
 import { MfaService } from '@/mfa/mfa.service';
@@ -24,7 +18,12 @@ import {
 	isLdapCurrentAuthenticationMethod,
 	isSamlCurrentAuthenticationMethod,
 } from '@/sso/sso-helpers';
+import { Response } from 'express';
+import { ApplicationError } from 'n8n-workflow';
+import validator from 'validator';
 
+import type { User } from '@/databases/entities/user';
+import type { PublicUser } from '@/interfaces';
 @RestController()
 export class AuthController {
 	constructor(
@@ -72,6 +71,7 @@ export class AuthController {
 		} else {
 			user = await handleEmailLogin(email, password);
 		}
+		this.logger.info('user', { user });
 
 		if (user) {
 			if (user.mfaEnabled) {
