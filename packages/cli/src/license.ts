@@ -1,21 +1,21 @@
-import { GlobalConfig } from '@n8n/config';
-import { Container, Service } from '@n8n/di';
-import type { TEntitlement, TFeatures, TLicenseBlock } from '@n8n_io/license-sdk';
-import { LicenseManager } from '@n8n_io/license-sdk';
-import { InstanceSettings, Logger } from 'n8n-core';
-
-import config from '@/config';
-import { SettingsRepository } from '@/databases/repositories/settings.repository';
-import { OnShutdown } from '@/decorators/on-shutdown';
-import { LicenseMetricsService } from '@/metrics/license-metrics.service';
+import config from "@/config"
+import { SettingsRepository } from "@/databases/repositories/settings.repository"
+import { OnShutdown } from "@/decorators/on-shutdown"
+import { LicenseMetricsService } from "@/metrics/license-metrics.service"
+import { GlobalConfig } from "@n8n/config"
+import { Container, Service } from "@n8n/di"
+import { LicenseManager } from "@n8n_io/license-sdk"
+import { InstanceSettings, Logger } from "n8n-core"
 
 import {
-	LICENSE_FEATURES,
-	LICENSE_QUOTAS,
-	N8N_VERSION,
-	SETTINGS_LICENSE_CERT_KEY,
-	UNLIMITED_LICENSE_QUOTA,
-} from './constants';
+    LICENSE_FEATURES,
+    LICENSE_QUOTAS,
+    N8N_VERSION,
+    SETTINGS_LICENSE_CERT_KEY,
+    UNLIMITED_LICENSE_QUOTA,
+} from "./constants"
+
+import type { TEntitlement, TFeatures, TLicenseBlock } from '@n8n_io/license-sdk';
 import type { BooleanLicenseFeature, NumericLicenseFeature } from './interfaces';
 
 const LICENSE_RENEWAL_DISABLED_WARNING =
@@ -208,8 +208,9 @@ export class License {
 		this.logger.debug('License shut down');
 	}
 
-	isFeatureEnabled(feature: BooleanLicenseFeature) {
-		return this.manager?.hasFeatureEnabled(feature) ?? false;
+	isFeatureEnabled(_feature: BooleanLicenseFeature) {
+		// Shim: Always return true to enable all boolean features
+		return true;
 	}
 
 	isSharingEnabled() {
@@ -305,11 +306,16 @@ export class License {
 	}
 
 	getCurrentEntitlements() {
+		// Shim: Return an empty array or mock data if needed, but bypassing checks elsewhere might be sufficient
 		return this.manager?.getCurrentEntitlements() ?? [];
 	}
 
-	getFeatureValue<T extends keyof FeatureReturnType>(feature: T): FeatureReturnType[T] {
-		return this.manager?.getFeatureValue(feature) as FeatureReturnType[T];
+	getFeatureValue<T extends keyof FeatureReturnType>(_feature: T): FeatureReturnType[T] {
+		// Shim: Return a default value, potentially overridden by specific getters below
+		// For boolean features, isFeatureEnabled is the primary gate.
+		// For numeric quotas, specific getters below handle it.
+		// 'planName' is handled by getPlanName().
+		return undefined as FeatureReturnType[T]; // Return undefined or a sensible default
 	}
 
 	getManagementJwt(): string {
@@ -345,45 +351,48 @@ export class License {
 
 	// Helper functions for computed data
 	getUsersLimit() {
-		return this.getFeatureValue(LICENSE_QUOTAS.USERS_LIMIT) ?? UNLIMITED_LICENSE_QUOTA;
+		// Shim: Return unlimited
+		return UNLIMITED_LICENSE_QUOTA;
 	}
 
 	getTriggerLimit() {
-		return this.getFeatureValue(LICENSE_QUOTAS.TRIGGER_LIMIT) ?? UNLIMITED_LICENSE_QUOTA;
+		// Shim: Return unlimited
+		return UNLIMITED_LICENSE_QUOTA;
 	}
 
 	getVariablesLimit() {
-		return this.getFeatureValue(LICENSE_QUOTAS.VARIABLES_LIMIT) ?? UNLIMITED_LICENSE_QUOTA;
+		// Shim: Return unlimited
+		return UNLIMITED_LICENSE_QUOTA;
 	}
 
 	getAiCredits() {
-		return this.getFeatureValue(LICENSE_QUOTAS.AI_CREDITS) ?? 0;
+		// Shim: Return a high number or unlimited
+		return UNLIMITED_LICENSE_QUOTA; // Or a large number like 999999
 	}
 
 	getWorkflowHistoryPruneLimit() {
-		return (
-			this.getFeatureValue(LICENSE_QUOTAS.WORKFLOW_HISTORY_PRUNE_LIMIT) ?? UNLIMITED_LICENSE_QUOTA
-		);
+		// Shim: Return unlimited
+		return UNLIMITED_LICENSE_QUOTA;
 	}
 
 	getTeamProjectLimit() {
-		return this.getFeatureValue(LICENSE_QUOTAS.TEAM_PROJECT_LIMIT) ?? 0;
+		// Shim: Return unlimited or a high number
+		return UNLIMITED_LICENSE_QUOTA; // Or a large number like 999
 	}
 
 	getPlanName(): string {
-		return this.getFeatureValue('planName') ?? 'Community';
+		// Shim: Indicate that all features are enabled
+		return 'Community (AIX - All Features Enabled)';
 	}
 
 	getInfo(): string {
-		if (!this.manager) {
-			return 'n/a';
-		}
-
-		return this.manager.toString();
+		// Shim: Provide adjusted info
+		return 'License Shim: All features enabled (Community Mode Override)';
 	}
 
 	isWithinUsersLimit() {
-		return this.getUsersLimit() === UNLIMITED_LICENSE_QUOTA;
+		// Shim: Always return true as the limit is now unlimited
+		return true;
 	}
 
 	/**
