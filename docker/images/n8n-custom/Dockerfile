@@ -54,12 +54,12 @@ RUN \
 	rm -r /launcher-temp
 
 RUN \
-	cd /usr/local/lib/node_modules/n8n && \
-	npm rebuild sqlite3 && \
-	cd - && \
-	ln -s /usr/local/lib/node_modules/n8n/bin/n8n /usr/local/bin/n8n && \
-	mkdir .n8n && \
-	chown node:node .n8n
+    cd /usr/local/lib/node_modules/n8n && \
+    npm rebuild sqlite3 && \
+    cd - && \
+    ln -s /usr/local/lib/node_modules/n8n/bin/n8n /usr/local/bin/n8n && \
+    [ -d .n8n ] || mkdir .n8n && \
+    chown node:node .n8n
 
 ENV SHELL /bin/sh
 USER node
