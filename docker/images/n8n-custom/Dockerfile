@@ -31,6 +31,9 @@ WORKDIR /home/node
 COPY --from=builder /compiled /usr/local/lib/node_modules/n8n
 COPY docker/images/n8n/docker-entrypoint.sh /
 
+### ADD ADDITIONAL NPM PACKAGES HERE
+RUN npm install --prefix /home/node/.n8n/nodes dayjs cron-schedule
+
 # Setup the Task Runner Launcher
 ARG TARGETPLATFORM
 ARG LAUNCHER_VERSION=1.1.1
