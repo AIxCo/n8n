@@ -5,72 +5,50 @@ import { useI18n } from '@/composables/useI18n';
 import { useNodeHelpers } from '@/composables/useNodeHelpers';
 import { useWorkflowsStore } from '@/stores/workflows.store';
 import { N8nButton, N8nRadioButtons, N8nText, N8nTooltip } from '@n8n/design-system';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { ElTree, type TreeNode as ElTreeNode } from 'element-plus';
 import {
-	createAiData,
 	getSubtreeTotalConsumedTokens,
 	getTotalConsumedTokens,
-	getTreeNodeData,
 	type TreeNode,
 } from '@/components/RunDataAi/utils';
-import { type INodeUi } from '@/Interface';
-import { upperFirst } from 'lodash-es';
 import { useTelemetry } from '@/composables/useTelemetry';
-import ConsumedTokenCountText from '@/components/CanvasChat/future/components/ConsumedTokenCountText.vue';
+import LogsOverviewRow from '@/components/CanvasChat/future/components/LogsOverviewRow.vue';
+import { useRunWorkflow } from '@/composables/useRunWorkflow';
+import { useNDVStore } from '@/stores/ndv.store';
+import { useRouter } from 'vue-router';
+import ExecutionSummary from '@/components/CanvasChat/future/components/ExecutionSummary.vue';
 
-const { node, isOpen } = defineProps<{ isOpen: boolean; node: INodeUi | null }>();
+const { isOpen, isReadOnly, selected, isCompact, executionTree } = defineProps<{
+	isOpen: boolean;
+	selected?: TreeNode;
+	isReadOnly: boolean;
+	isCompact: boolean;
+	executionTree: TreeNode[];
+}>();
 
-const emit = defineEmits<{ clickHeader: [] }>();
+const emit = defineEmits<{ clickHeader: []; select: [TreeNode | undefined] }>();
 
 defineSlots<{ actions: {} }>();
 
 const locale = useI18n();
 const telemetry = useTelemetry();
 const workflowsStore = useWorkflowsStore();
+const router = useRouter();
+const runWorkflow = useRunWorkflow({ router });
+const ndvStore = useNDVStore();
 const nodeHelpers = useNodeHelpers();
 const isClearExecutionButtonVisible = useClearExecutionButtonVisible();
 const workflow = computed(() => workflowsStore.getCurrentWorkflow());
-const executionTree = computed<TreeNode[]>(() =>
-	node
-		? getTreeNodeData(
-				node.name,
-				workflow.value,
-				createAiData(node.name, workflow.value, workflowsStore.getWorkflowResultDataByNodeName),
-			)
-		: [],
-);
 const isEmpty = computed(() => workflowsStore.workflowExecutionData === null);
-const switchViewOptions = computed<Array<{ label: string; value: string }>>(() => [
-	{ label: locale.baseText('logs.overview.header.switch.details'), value: 'details' },
-	{ label: locale.baseText('logs.overview.header.switch.overview'), value: 'overview' },
+const switchViewOptions = computed(() => [
+	{ label: locale.baseText('logs.overview.header.switch.details'), value: 'details' as const },
+	{ label: locale.baseText('logs.overview.header.switch.overview'), value: 'overview' as const },
 ]);
-const executionStatusText = computed(() => {
-	const execution = workflowsStore.workflowExecutionData;
-
-	if (!execution) {
-		return undefined;
-	}
-
-	if (execution.startedAt && execution.stoppedAt) {
-		return locale.baseText('logs.overview.body.summaryText', {
-			interpolate: {
-				status: upperFirst(execution.status),
-				time: locale.displayTimer(
-					+new Date(execution.stoppedAt) - +new Date(execution.startedAt),
-					true,
-				),
-			},
-		});
-	}
-
-	return upperFirst(execution.status);
-});
+const execution = computed(() => workflowsStore.workflowExecutionData);
 const consumedTokens = computed(() =>
-	getTotalConsumedTokens(...executionTree.value.map(getSubtreeTotalConsumedTokens)),
+	getTotalConsumedTokens(...executionTree.map(getSubtreeTotalConsumedTokens)),
 );
-
-const selectedRun = ref<{ node: string; runIndex: number } | undefined>(undefined);
 
 function onClearExecutionData() {
 	workflowsStore.setWorkflowExecutionData(null);
@@ -78,12 +56,12 @@ function onClearExecutionData() {
 }
 
 function handleClickNode(clicked: TreeNode) {
-	if (selectedRun.value?.node === clicked.node && selectedRun.value.runIndex === clicked.runIndex) {
-		selectedRun.value = undefined;
+	if (selected?.node === clicked.node && selected?.runIndex === clicked.runIndex) {
+		emit('select', undefined);
 		return;
 	}
 
-	selectedRun.value = { node: clicked.node, runIndex: clicked.runIndex };
+	emit('select', clicked);
 	telemetry.track('User selected node in log view', {
 		node_type: workflowsStore.nodesByName[clicked.node].type,
 		node_id: workflowsStore.nodesByName[clicked.node].id,
@@ -92,15 +70,28 @@ function handleClickNode(clicked: TreeNode) {
 	});
 }
 
+function handleSwitchView(value: 'overview' | 'details') {
+	emit('select', value === 'overview' || executionTree.length === 0 ? undefined : executionTree[0]);
+}
+
 function handleToggleExpanded(treeNode: ElTreeNode) {
 	treeNode.expanded = !treeNode.expanded;
+}
+
+async function handleOpenNdv(treeNode: TreeNode) {
+	ndvStore.setActiveNodeName(treeNode.node);
+}
+
+async function handleTriggerPartialExecution(treeNode: TreeNode) {
+	await runWorkflow.runWorkflow({ destinationNode: treeNode.node });
 }
 </script>
 
 <template>
-	<div :class="$style.container">
+	<div :class="$style.container" data-test-id="logs-overview">
 		<PanelHeader
 			:title="locale.baseText('logs.overview.header.title')"
+			data-test-id="logs-overview-header"
 			@click="emit('clickHeader')"
 		>
 			<template #actions>
@@ -113,6 +104,7 @@ function handleToggleExpanded(treeNode: ElTreeNode) {
 						type="secondary"
 						icon="trash"
 						icon-size="medium"
+						:class="$style.clearButton"
 						@click.stop="onClearExecutionData"
 						>{{ locale.baseText('logs.overview.header.actions.clearExecution') }}</N8nButton
 					>
@@ -120,26 +112,36 @@ function handleToggleExpanded(treeNode: ElTreeNode) {
 				<slot name="actions" />
 			</template>
 		</PanelHeader>
-		<div v-if="isOpen" :class="[$style.content, isEmpty ? $style.empty : '']">
-			<N8nText v-if="isEmpty" tag="p" size="medium" color="text-base" :class="$style.emptyText">
+		<div
+			v-if="isOpen"
+			:class="[$style.content, isEmpty ? $style.empty : '']"
+			data-test-id="logs-overview-body"
+		>
+			<N8nText
+				v-if="isEmpty"
+				tag="p"
+				size="medium"
+				color="text-base"
+				:class="$style.emptyText"
+				data-test-id="logs-overview-empty"
+			>
 				{{ locale.baseText('logs.overview.body.empty.message') }}
 			</N8nText>
 			<div v-else :class="$style.scrollable">
-				<N8nText
-					v-if="executionStatusText !== undefined"
-					tag="div"
-					color="text-light"
-					size="small"
+				<ExecutionSummary
+					v-if="execution"
 					:class="$style.summary"
-				>
-					<span>{{ executionStatusText }}</span>
-					<ConsumedTokenCountText
-						v-if="consumedTokens.totalTokens > 0"
-						:consumed-tokens="consumedTokens"
-					/>
-				</N8nText>
+					:status="execution.status"
+					:consumed-tokens="consumedTokens"
+					:time-took="
+						execution.startedAt && execution.stoppedAt
+							? +new Date(execution.stoppedAt) - +new Date(execution.startedAt)
+							: undefined
+					"
+				/>
 				<ElTree
 					v-if="executionTree.length > 0"
+					node-key="id"
 					:class="$style.tree"
 					:indent="0"
 					:data="executionTree"
@@ -151,19 +153,22 @@ function handleToggleExpanded(treeNode: ElTreeNode) {
 						<LogsOverviewRow
 							:data="data"
 							:node="elTreeNode"
-							:is-selected="
-								data.node === selectedRun?.node && data.runIndex === selectedRun?.runIndex
-							"
+							:is-read-only="isReadOnly"
+							:is-selected="data.node === selected?.node && data.runIndex === selected?.runIndex"
+							:is-compact="isCompact"
 							:should-show-consumed-tokens="consumedTokens.totalTokens > 0"
 							@toggle-expanded="handleToggleExpanded"
+							@open-ndv="handleOpenNdv"
+							@trigger-partial-execution="handleTriggerPartialExecution"
 						/>
 					</template>
 				</ElTree>
 				<N8nRadioButtons
 					size="medium"
 					:class="$style.switchViewButtons"
-					:model-value="selectedRun ? 'details' : 'overview'"
+					:model-value="selected ? 'details' : 'overview'"
 					:options="switchViewOptions"
+					@update:model-value="handleSwitchView"
 				/>
 			</div>
 		</div>
@@ -171,6 +176,8 @@ function handleToggleExpanded(treeNode: ElTreeNode) {
 </template>
 
 <style lang="scss" module>
+@import '@/styles/variables';
+
 .container {
 	flex-grow: 1;
 	flex-shrink: 1;
@@ -178,6 +185,12 @@ function handleToggleExpanded(treeNode: ElTreeNode) {
 	flex-direction: column;
 	align-items: stretch;
 	overflow: hidden;
+	background-color: var(--color-foreground-xlight);
+}
+
+.clearButton {
+	border: none;
+	color: var(--color-text-light);
 }
 
 .content {
@@ -201,28 +214,19 @@ function handleToggleExpanded(treeNode: ElTreeNode) {
 }
 
 .scrollable {
-	padding: var(--spacing-2xs);
 	flex-grow: 1;
 	flex-shrink: 1;
 	overflow: auto;
 }
 
 .summary {
-	display: flex;
-	align-items: center;
-	padding-block: var(--spacing-2xs);
-
-	& > * {
-		padding-inline: var(--spacing-2xs);
-	}
-
-	& > *:not(:last-child) {
-		border-right: var(--border-base);
-	}
+	margin-bottom: var(--spacing-4xs);
+	padding: var(--spacing-4xs) var(--spacing-2xs) 0 var(--spacing-2xs);
+	min-height: calc(30px + var(--spacing-s));
 }
 
 .tree {
-	margin-top: var(--spacing-2xs);
+	padding: 0 var(--spacing-2xs) var(--spacing-2xs) var(--spacing-2xs);
 
 	& :global(.el-icon) {
 		display: none;
@@ -231,8 +235,17 @@ function handleToggleExpanded(treeNode: ElTreeNode) {
 
 .switchViewButtons {
 	position: absolute;
+	z-index: 10; /* higher than log entry rows background */
 	right: 0;
 	top: 0;
 	margin: var(--spacing-2xs);
+	visibility: hidden;
+	opacity: 0;
+	transition: opacity 0.3s $ease-out-expo;
+
+	.content:hover & {
+		visibility: visible;
+		opacity: 1;
+	}
 }
 </style>
