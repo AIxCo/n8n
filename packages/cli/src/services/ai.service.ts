@@ -1,7 +1,7 @@
 import { GlobalConfig } from "@n8n/config"
 import { Service } from "@n8n/di"
 import { AiAssistantClient } from "@n8n_io/ai-assistant-sdk"
-import { assert, IUser, type } from "n8n-workflow"
+import { assert, IUser } from "n8n-workflow"
 
 import { N8N_VERSION } from "../constants"
 import { License } from "../license"
