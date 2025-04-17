@@ -19,7 +19,6 @@ export class AiService {
 		private readonly licenseService: License,
 		private readonly globalConfig: GlobalConfig,
 	) {}
-
 	async init() {
 		const aiAssistantEnabled = this.licenseService.isAiAssistantEnabled();
 
